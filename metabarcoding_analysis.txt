@@ -1,0 +1,141 @@
+##check data quality using FastQC
+
+mkdir fastqc_out
+fastqc -t 4 /data/* -o fastqc_outbbb/
+
+#using qiime2
+
+#activate qiime2 environment
+source activate qiime2-2017.12
+
+#enable tab completion
+source tab-qiime
+
+#import paired-end sequences, 2 files per sample (forward and reverse)
+#need manifest file
+#The manifest file is a comma-separated (i.e., .csv) text file. The first field on each line is the sample identifier that should be used by QIIME, the second field is the absolute filepath, and the third field is the read direction. 
+#eg:
+#sample-1,filepath/seqs.fastq.gz,forward
+#sample-1,filepath/seqs.fastq.gz,reverse
+
+qiime tools import \
+  --type 'SampleData[SequencesWithQuality]' \
+  --input-path manifestfile.csv \
+  --output-path paired-end-demux.qza \
+  --source-format PairedEndFastqManifestPhred33
+
+qiime demux summarize \
+  --i-data paired-end-demux.qza \
+  --o-visualization paired-end-demux.qzv
+
+#view/examine output, determine how much of 5' and 3' ends need to be trimmed based on quality cut-off
+qiime tools view paired-end-demux.qzv
+#look at interactive quality plot for seq quality for F and R reads
+
+#trim seqs (de-noise), de-replicate, merge, remove chimeras using dada2 (https://benjjneb.github.io/dada2/index.html)
+#do not trim so much for paired reads so that seqs do not merge anymore
+
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs paired-end-demux.qza \
+  --o-table table \
+  --o-representative-sequences rep-seqs \
+  --p-trim-left-f 13 \
+  --p-trim-left-r 13 \
+  --p-trunc-len-f 150 \
+  --p-trunc-len-r 150
+
+#generates table.qza and rep-seqs.qza files
+#get/view summary of data
+#now here need sample metadata table
+#as tab-separated file, must have columns (?necessary if seqs already demultiplexed?):
+#  #SampleID	BarcodeSequence	LinkerPrimerSequence
+
+qiime feature-table summarize \
+  --i-table table.qza \
+  --o-visualization table.qzv \
+  --m-sample-metadata-file sample-metadata.tsv
+
+qiime tools view table.qzv
+
+qiime feature-table tabulate-seqs \
+  --i-data rep-seqs.qza \
+  --o-visualization rep-seqs.qzv
+
+qiime tools view rep-seqs.qzv
+
+#generate phylogenetic tree
+#align with mafft
+qiime alignment mafft \
+  --i-sequences rep-seqs.qza \
+  --o-alignment aligned-rep-seqs.qza
+
+#mask highly variable sites
+qiime alignment mask \
+  --i-alignment aligned-rep-seqs.qza \
+  --o-masked-alignment masked-aligned-rep-seqs.qza
+
+#generate tree with FastTree
+qiime phylogeny fasttree \
+  --i-alignment masked-aligned-rep-seqs.qza \
+  --o-tree unrooted-tree.qza
+
+#apply midpoint rooting
+qiime phylogeny midpoint-root \
+  --i-tree unrooted-tree.qza \
+  --o-rooted-tree rooted-tree.qza
+
+#calculate alpha and beta diversity metrics
+#choose p-sampling-depth based on #reads per sample, as seen is table.qzv
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table table.qza \
+  --p-sampling-depth 1109 \
+  --m-metadata-file sample-metadata.tsv \
+  --output-dir core-metrics-results
+
+#can do stats analyses on these results
+
+#taxonomic analysis
+
+#need trained dataset
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier gg-13-8-99-515-806-nb-classifier.qza \
+  --i-reads rep-seqs.qza \
+  --o-classification taxonomy.qza
+
+qiime metadata tabulate \
+  --m-input-file taxonomy.qza \
+  --o-visualization taxonomy.qzv
+
+#generate taxonomy bar plots
+
+qiime taxa barplot \
+  --i-table table.qza \
+  --i-taxonomy taxonomy.qza \
+  --m-metadata-file sample-metadata.tsv \
+  --o-visualization taxa-bar-plots.qzv
+
+
+#use qiime tools export to export data out of qiime
+#eg. to export table into BIOM v2.1.0 format
+
+qiime tools export \
+  feature-table.qza \
+  --output-dir exported-feature-table
+
+#eg. to export newick tree
+qiime tools export \
+  unrooted-tree.qza \
+  --output-dir exported-tree
+
+
+#may have issue importing these into phyloseq, esp. in merging taxonomy with biom file
+
+
+
+
+
+#deactivate qiime
+source deactivate

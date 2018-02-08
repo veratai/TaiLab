@@ -1,0 +1,9 @@
+
+#Feb 8, 2018
+#make /data backup
+#on external drive, renamed Seagate_databkup
+
+rsync -av --exclude 'lost+found' --exclude 'checkm' --exclude 'NCBI_nt' --exclude 'NCBI_tax' /data /media/vera/Seagate_databkup/
+
+
+

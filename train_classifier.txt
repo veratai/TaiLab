@@ -1,0 +1,123 @@
+#create taxonomy database for use in qiime
+#i.e. training feature classifiers with q2-feature-classifier
+
+#get fasta seqs and taxonomy file
+#what should format be? does tax file need to have 7 levels only
+
+#downloaded from qiime2 are already prepared classifiers using greengenes database
+#full-length 16S = gg-13-8-99-nb-classifier.qza
+#16S V4 = gg-13-8-99-515-806-nb-classifier.qza
+#will prepare our own, based on our own primers and using other databases too
+
+#activate qiime2 environment
+source activate qiime2-2017.12
+
+#import databases into Qiime2 artifacts
+
+#for Greengenes gg_13_8_otus (/data/tax_databases/gg/gg_13_8_otus)
+qiime tools import \
+  --type 'FeatureData[Sequence]' \
+  --input-path ./rep_set/99_otus.fasta \
+  --output-path /data/tax_databases/gg/gg_13_8_qiime2/gg_13_8_99_otus.qza
+
+qiime tools import \
+  --type 'FeatureData[Taxonomy]' \
+  --source-format HeaderlessTSVTaxonomyFormat \
+  --input-path ./taxonomy/99_otu_taxonomy.txt \
+  --output-path /data/tax_databases/gg/gg_13_8_qiime2/gg_13_8_99_otu_taxonomy.qza
+
+
+###for 16S V4 from Dalhouse IMR, mod515F to mod806R
+
+#match database sequences to amplicon location and length
+#cd /data/tax_databases/gg/gg_13_8_qiime2/
+
+qiime feature-classifier extract-reads \
+  --i-sequences gg_13_8_99_otus.qza \
+  --p-f-primer GTGYCAGCMGCCGCGGTAA \
+  --p-r-primer GGACTACNVGGGTWTCTAAT \
+  --p-trunc-len 500 \
+  --o-reads gg_13_8_99_16SV4_mod515F_mod806R_refseqs.qza
+
+#train naive bayes classifier
+
+qiime feature-classifier fit-classifier-naive-bayes \
+  --i-reference-reads gg_13_8_99_16SV4_mod515F_mod806R_refseqs.qza \
+  --i-reference-taxonomy gg_13_8_99_otu_taxonomy.qza \
+  --o-classifier gg_13_8_99_16SV4_mod515F_mod806R_nb_classifier.qza
+
+
+#for Silva 128 QIIME release (/data/tax_databases/silva/SILVA_128_QIIME_release)
+qiime tools import \
+  --type 'FeatureData[Sequence]' \
+  --input-path ./rep_set/rep_set_all/99/99_otus.fasta \
+  --output-path /data/tax_databases/silva/silva128_qiime2/silva128_99_otus.qza
+
+#using majority taxonomy constrained to 7-levels
+#if taxonomy was more than 7 levels, picked first 3, then last 4
+#therefore, taxonomy ranks may not match between bac, fungi, and euks for example
+#mid-level taxonomy may be missing for many euks
+
+qiime tools import \
+  --type 'FeatureData[Taxonomy]' \
+  --source-format HeaderlessTSVTaxonomyFormat \
+  --input-path ./taxonomy/taxonomy_all/99/majority_taxonomy_7_levels.txt \
+  --output-path /data/tax_databases/silva/silva128_qiime2/silva128_99_otu_maj7_taxonomy.qza
+
+###for 18S V4 from Dalhouse IMR, E572F to E1009R
+#match database sequences to amplicon location and length
+
+#cd /data/tax_databases/silva/silva128_qiime2/
+qiime feature-classifier extract-reads \
+  --i-sequences silva128_99_otus.qza \
+  --p-f-primer CYGCGGTAATTCCAGCTC \
+  --p-r-primer AYGGTATCTRATCRTCTTYG \
+  --p-trunc-len 1000 \
+  --o-reads silva128_18SV4_E572F_E1009R_refseqs.qza
+
+#train naive bayes classifier
+
+qiime feature-classifier fit-classifier-naive-bayes \
+  --i-reference-reads silva128_18SV4_E572F_E1009R_refseqs.qza \
+  --i-reference-taxonomy silva128_99_otu_maj7_taxonomy.qza \
+  --o-classifier silva128_18SV4_E572F_E1009R_nb_classifier.qza
+
+
+
+#for PR2 v4.72 (/data/tax_databases/pr2)
+qiime tools import \
+  --type 'FeatureData[Sequence]' \
+  --input-path ./pr2_version_4.72_mothur.fasta \
+  --output-path /data/tax_databases/pr2/pr2_qiime2/pr2_v4.72_mothur_seqs.qza
+
+#taxonomy has 8 levels at least, have not checked if that is consistent throughout
+
+qiime tools import \
+  --type 'FeatureData[Taxonomy]' \
+  --source-format HeaderlessTSVTaxonomyFormat \
+  --input-path ./pr2_version_4.72_mothur.tax \
+  --output-path /data/tax_databases/pr2/pr2_qiime2/pr2_v4.72_mothur_taxonomy.qza
+
+###for 18S V4 from Dalhouse IMR, E572F to E1009R
+#match database sequences to amplicon location and length
+
+#cd /data/tax_databases/pr2/pr2_qiime2/
+qiime feature-classifier extract-reads \
+  --i-sequences pr2_v4.72_mothur_seqs.qza \
+  --p-f-primer CYGCGGTAATTCCAGCTC \
+  --p-r-primer AYGGTATCTRATCRTCTTYG \
+  --p-trunc-len 1000 \
+  --o-reads pr2_v4.72_18SV4_E572F_E1009R_seqs.qza
+
+#train naive bayes classifier
+
+qiime feature-classifier fit-classifier-naive-bayes \
+  --i-reference-reads pr2_v4.72_18SV4_E572F_E1009R_seqs.qza \
+  --i-reference-taxonomy pr2_v4.72_mothur_taxonomy.qza \
+  --o-classifier pr2_v4.72_18SV4_E572F_E1009R_nb_classifier.qza
+
+#deactivate qiime
+source deactivate
+
+
+
