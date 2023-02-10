@@ -1,0 +1,47 @@
+#DEICODE 
+
+#A Novel Sparse Compositional Technique Reveals Microbial Perturbations
+#Martino et al. 2019
+
+#DEICODE is a form of Aitchison Distance that is robust to high levels of sparsity. DEICODE utilizes a natural solution to the zero problem formulated in recommendation systems called matrix completion. A simple way to interpret the method is, as a robust compositional PCA (via SVD) where zero values do not influence the resulting ordination. One of the benefits of using DEICODE is the ability to reveal salient inter-community niche feature importance in compositional biplots. These biplot can be easily visualized in the existing QIIME architecture through Emperor.
+
+#https://forum.qiime2.org/t/robust-aitchison-pca-beta-diversity-with-deicode/8333
+
+#install into qiime2
+
+source activate qiime2-2022.2
+pip install deicode
+
+#run Robust Atchison RPCA (aka robust PCA) Biplot 
+# --p-min-feature-count is minimum sum for a feature (ASV) across all samples, otherwise feature is removed
+# i.e. features with very low total counts among all samples can be filtered out
+# --p-min-sample-count is minimum sum cutoff of reads in a sample across all features
+# i.e. sample that received very few reads relative to other samples can be filtered out
+
+#these filtering criteria have likely already been implemented earlier in the data processing, so can use these same parameters
+# e.g. qiime feature-table filter-features
+#  --p-min-frequency  is the same as --p-min-feature-count
+
+# e.g. qiime feature-table filter-samples
+# --p-min-frequency is the same as --p-min-sample-count
+
+
+qiime deicode rpca \
+    --i-table sunfish_cyano16S_filteredtable_ASVmin7_cyanos.qza \
+    --p-min-feature-count 10 \
+    --p-min-sample-count 500 \
+    --o-biplot sunfish_ordination.qza \
+    --o-distance-matrix sunfish_distance.qza
+
+
+
+to import ordination into R
+
+#make sure qiime2R is updated 
+#devtools::install_github("jbisanz/qiime2R")
+
+#don't need to update, we have latest version, 0.99.6, so it is OK
+packageVersion("qiime2R")
+
+see DEICODE_analysis.R
+
