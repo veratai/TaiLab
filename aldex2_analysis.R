@@ -1,3 +1,13 @@
+<<<<<<< HEAD
+=======
+library(ALDEx2)
+library(phyloseq)
+library(ggplot2)
+library(scales)
+library(grid)
+library(RColorBrewer)
+
+>>>>>>> main
 #Create a custom color scale
 Rank2tax <- c("Alveolata", "Amoebozoa", "Apusozoa", "Archaeplastida", "Excavata", "Hacrobia", "Opisthokonta", "Rhizaria", "Stramenopiles", "Eukaryota_X", "Eukaryota", "Unassigned")
 getPalette = colorRampPalette(brewer.pal(9, "Set1"))
@@ -29,6 +39,7 @@ plot_results <- function(sigtab, tax1, tax2, title) {
 }
 
 
+<<<<<<< HEAD
 library(ALDEx2)
 library(phyloseq)
 library(ggplot2)
@@ -36,6 +47,8 @@ library(scales)
 library(grid)
 library(RColorBrewer)
 
+=======
+>>>>>>> main
 
 #from phyloseq object qiimez
 #make data frame object with just otu counts

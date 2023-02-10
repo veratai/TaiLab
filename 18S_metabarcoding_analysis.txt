@@ -1,0 +1,287 @@
+##check data quality using FastQC
+
+fastqc 
+#checked first 2 sequence files, sequences looked good
+#did not check others, will look at them during demux analysis
+
+#using qiime2
+
+#activate qiime2 environment
+source activate qiime2-2017.12
+
+#deactivate qiime
+source deactivate
+
+#enable tab completion
+source tab-qiime
+
+#import paired-end sequences, 2 files per sample (forward and reverse)
+#need manifest file
+#The manifest file is a comma-separated (i.e., .csv) text file. The first field on each line is the sample identifier that should be used by QIIME, the second field is the absolute filepath, and the third field is the read direction. 
+#eg:
+#sample-1,filepath/seqs.fastq.gz,forward
+#sample-1,filepath/seqs.fastq.gz,reverse
+
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path manifest.csv \
+  --output-path Quadrazoop_18S_paired-end-demux.qza \
+  --source-format PairedEndFastqManifestPhred33
+
+**
+qiime demux summarize \
+  --i-data Quadrazoop_18S_paired-end-demux.qza \
+  --o-visualization Quadrazoop_18S_paired-end-demux.qzv
+
+#view/examine output, determine how much of 5' and 3' ends need to be trimmed based on quality cut-off
+#Cut-off sequences where bottom of box is quality of 25 or lower, cut-off first 5 positions due to their inconsistency
+qiime tools view Quadrazoop_18S_paired-end-demux.qzv
+#look at interactive quality plot for seq quality for F and R reads
+
+#trim seqs (de-noise), de-replicate, merge, remove chimeras using dada2 (https://benjjneb.github.io/dada2/index.html)
+#do not trim so much for paired reads so that seqs do not merge anymore
+
+#run in background screen
+#to launch a screen
+screen -S qiime
+source activate qiime2-2017.12
+
+#to get out of screen
+ctrl A+D
+#to get back into screen
+screen -r qiime
+
+#to completely exit and end/logout of screen
+exit
+
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs Quadrazoop_18S_paired-end-demux.qza \
+  --o-table table \
+  --o-representative-sequences Quadrazoop_18S_rep-seqs \
+  --p-trim-left-f 5 \
+  --p-trim-left-r 5 \
+  --p-trunc-len-f 300 \
+  --p-trunc-len-r 265
+
+#generates table.qza and rep-seqs.qza files
+#get/view summary of data
+#now here need sample metadata table
+#as tab-separated file, must have columns (?necessary if seqs already demultiplexed?):
+#  #SampleID	BarcodeSequence	LinkerPrimerSequence
+
+qiime feature-table summarize \
+  --i-table table.qza \
+  --o-visualization table.qzv \
+  --m-sample-metadata-file 18Smapping.tsv
+
+qiime tools view table.qzv
+
+qiime feature-table tabulate-seqs \
+  --i-data Quadrazoop_18S_rep-seqs.qza \
+  --o-visualization Quadrazoop_18S_rep-seqs.qzv
+
+qiime tools view Quadrazoop_18S_rep-seqs.qzv
+
+#generate phylogenetic tree
+#align with mafft
+qiime alignment mafft \
+  --i-sequences Quadrazoop_18S_rep-seqs.qza \
+  --o-alignment Quadrazoop_18S_aligned-rep-seqs.qza
+
+#mask highly variable sites
+qiime alignment mask \
+  --i-alignment Quadrazoop_18S_aligned-rep-seqs.qza \
+  --o-masked-alignment Quadrazoop_18S_masked-aligned-rep-seqs.qza
+
+#generate tree with FastTree
+qiime phylogeny fasttree \
+  --i-alignment Quadrazoop_18S_masked-aligned-rep-seqs.qza \
+  --o-tree Quadrazoop_18S_unrooted-tree.qza
+
+#apply midpoint rooting
+qiime phylogeny midpoint-root \
+  --i-tree Quadrazoop_18S_unrooted-tree.qza \
+  --o-rooted-tree Quadrazoop_18S_rooted-tree.qza
+
+#calculate alpha and beta diversity metrics
+#choose p-sampling-depth based on #reads per sample, as seen is table.qzv
+
+#Currently not working when p sampling depth = 0 or excluded, need to look up to compare to the directory for samp. depth of 9657
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny Quadrazoop_18S_rooted-tree.qza \
+  --i-table table.qza \
+  --p-sampling-depth 0 \
+  --m-metadata-file 18Smapping.tsv \
+  --output-dir core-metrics-results_0
+#Until QIIME2 has this feature, skip sampling depth = 0 step.
+
+#Sampling depth based on number of reads with Malacostraca host sequences
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny Quadrazoop_18S_rooted-tree.qza \
+  --i-table table.qza \
+  --p-sampling-depth 9657 \
+  --m-metadata-file 18Smapping.tsv \
+  --output-dir core-metrics-results_9657
+
+#examine beta-diversity unweighted unifrac pcoa
+qiime tools view unweighted_unifrac_emperor.qzv
+qiime tools view weighted_unifrac_emperor.qzv
+
+#alpha diversity for +Maxilopoda host sequences #reads
+
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity core-metrics-results_9657/shannon_vector.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --o-visualization core-metrics-results_9657/shannon-group-significance.qzv
+
+qiime tools view shannon-group-significance.qzv
+
+#beta diversity based on Treatment and Species
+qiime diversity beta-group-significance \
+  --i-distance-matrix core-metrics-results_9657/unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --m-metadata-category Treatment \
+  --o-visualization core-metrics-results_9657/unweighted-unifrac-Treatment-significance.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix core-metrics-results_9657/unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --m-metadata-category Species \
+  --o-visualization core-metrics-results_9657/unweighted-unifrac-Species-significance.qzv \
+  --p-pairwise
+
+qiime tools view unweighted-unifrac-Treatment-significance.qzv
+qiime tools view unweighted-unifrac-Species-significance.qzv
+
+#can do stats analyses on these results
+
+#taxonomic analysis
+
+#need trained dataset
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier /data/tax_databases/pr2/pr2_qiime2/pr2_v4.72_18SV4_E572F_E1009R_nb_classifier.qza \
+  --i-reads Quadrazoop_18S_rep-seqs.qza \
+  --o-classification Quadrazoop_18S_taxonomy.qza
+
+qiime metadata tabulate \
+  --m-input-file Quadrazoop_18S_taxonomy.qza \
+  --o-visualization Quadrazoop_18S_taxonomy
+
+qiime tools view Quadrazoop_18S_taxonomy.qzv
+
+#generate taxonomy bar plots
+
+qiime taxa barplot \
+  --i-table table.qza \
+  --i-taxonomy Quadrazoop_18S_taxonomy.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --o-visualization Quadrazoop_18S_taxa-bar-plots.qzv
+
+qiime tools view Quadrazoop_18S_taxa-bar-plots.qzv
+
+
+#Filter out host DNA
+qiime feature-table filter-features \
+  --i-table table.qza \
+  --m-metadata-file Quadrazoop_18S_taxonomy.qza \
+  --p-where "Taxon NOT LIKE '%Eukaryota;Opisthokonta;Metazoa;Arthropoda;Crustacea;Maxillopoda%'" \
+  --o-filtered-table QuadraZoop_18S-table-sans-hostDNA.qza
+
+
+#Removed host and look at sampling depth
+qiime feature-table summarize \
+  --i-table QuadraZoop_18S-table-sans-hostDNA.qza \
+  --o-visualization QuadraZoop_18S-table-sans-hostDNA.qzv \
+  --m-sample-metadata-file 18Smapping.tsv
+
+qiime tools view QuadraZoop_18S-table-sans-hostDNA.qzv
+
+#Output core metrics for sampling depth without the Maxillopoda sequences
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny Quadrazoop_18S_rooted-tree.qza \
+  --i-table QuadraZoop_18S-table-sans-hostDNA.qza \
+  --p-sampling-depth 1304 \
+  --m-metadata-file 18Smapping.tsv \
+  --output-dir core-metrics-results_1304
+
+#Recalculate alpha and beta diversity
+#alpha diversity
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity core-metrics-results_1304/shannon_vector.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --o-visualization core-metrics-results_1304/shannon-group-significance.qzv
+
+qiime tools view shannon-group-significance.qzv
+
+#beta diversity based on Treatment and Species
+qiime diversity beta-group-significance \
+  --i-distance-matrix core-metrics-results_1304/unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --m-metadata-category Treatment \
+  --o-visualization core-metrics-results_1304/unweighted-unifrac-Treatment-significance.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix core-metrics-results_1304/unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --m-metadata-category Species \
+  --o-visualization core-metrics-results_1304/unweighted-unifrac-Species-significance.qzv \
+  --p-pairwise
+
+qiime tools view unweighted-unifrac-Treatment-significance.qzv
+qiime tools view unweighted-unifrac-Species-significance.qzv
+
+
+#Taxonomy barplot without host sequences
+qiime taxa barplot \
+  --i-table QuadraZoop_18S-table-sans-hostDNA.qza \
+  --i-taxonomy Quadrazoop_18S_taxonomy.qza \
+  --m-metadata-file 18Smapping.tsv \
+  --o-visualization Quadrazoop_18S_taxa-bar-plots-sans-hostDNA.qzv
+
+qiime tools view Quadrazoop_18S_taxa-bar-plots-sans-hostDNA.qzv
+
+
+#Filter only hydrozoa
+qiime taxa filter-seqs \
+  --i-sequences Quadrazoop_18S_rep-seqs.qza \
+  --i-taxonomy Quadrazoop_18S_taxonomy.qza \
+  --p-include "%Hydrozoa%" \
+  --o-filtered-sequences Hydrozoa_seqs.qza
+
+##Export hydrozoa seqs
+
+qiime tools export \
+  Hydrozoa_seqs.qza \
+  --output-dir 18S_Hydrozoa_seqs
+
+
+
+#use qiime tools export to export data out of qiime
+#eg. to export table into BIOM v2.1.0 format
+
+qiime tools export \
+  QuadraZoop_18S-table-sans-hostDNA.qza \
+  --output-dir QuadraZoop_18S-table-sans-hostDNA_exported
+
+#eg. to export newick tree
+qiime tools export \
+  unrooted-tree.qza \
+  --output-dir exported-tree
+
+
+qiime tools export \
+  shannon_vector.qza \
+  --output-dir shannon_vector_exported
+
+#may have issue importing these into phyloseq, esp. in merging taxonomy with biom file
+
+
+
+
+
+#deactivate qiime
+source deactivate
