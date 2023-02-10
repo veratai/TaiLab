@@ -1,0 +1,38 @@
+Merge pr2 taxonomy and greengenes taxonomy (85) so that bac/arc/organelle sequences added to pr2
+
+#taxonomy and fasta files are here:
+
+/opt/qiime_software/gg_otus-13_8-release/rep_set/85_otus.fasta
+
+/opt/qiime_software/gg_otus-13_8-release/taxonomy/85_otu_taxonomy.txt
+
+/media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.fasta
+
+/media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.taxo
+
+#merge them:
+
+mkdir /media/Data_1/Noriko/qiime/PR2v4.5__gg_otus-13_8_85_otus
+
+cat /media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.fasta > pr2_gb203_4.5__gg_13_8_85otus.fasta
+cat /opt/qiime_software/gg_otus-13_8-release/rep_set/85_otus.fasta >> pr2_gb203_4.5__gg_13_8_85otus.fasta
+
+
+cat /media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.taxo > pr2_gb203_4.5__gg_13_8_85otus.taxo
+cat /opt/qiime_software/gg_otus-13_8-release/taxonomy/85_otu_taxonomy.txt >> pr2_gb203_4.5__gg_13_8_85otus.taxo
+
+
+#not catching enough bacteria
+#use 97_otus
+
+mkdir /media/Data_1/Noriko/qiime/PR2v4.5_gg_otus-13_8_97_otus
+
+cat /media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.fasta > pr2_gb203_4.5_gg_13_8_97otus.fasta
+cat /opt/qiime_software/gg_otus-13_8-release/rep_set/97_otus.fasta >> pr2_gb203_4.5_gg_13_8_97otus.fasta
+
+cat /media/Data_1/Noriko/qiime/PR2v4.5/pr2_gb203_version_4.5.taxo > pr2_gb203_4.5_gg_13_8_97otus.taxo
+cat /opt/qiime_software/gg_otus-13_8-release/taxonomy/97_otu_taxonomy.txt >> pr2_gb203_4.5_gg_13_8_97otus.taxo
+
+
+#make blast database
+makeblastdb -in /media/Data_1/Noriko/qiime/PR2v4.5_gg_otus-13_8_97_otus/pr2_gb203_4.5_gg_13_8_97otus.fasta -dbtype nucl -out pr2gg
