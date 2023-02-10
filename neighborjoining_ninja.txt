@@ -1,0 +1,9 @@
+#using ninja for neighbor-joining trees
+
+#pertinent parameters:
+#--alph_type, d for dna or a for amino acid
+#--corr_type, n for none, j for jukes-cantor, k for k2parameter (default for dna), s for Fast-tree score-like correction (default for amino acid)
+#also --clust_size (or -s), default = 30 - need to read paper to find out what this is for
+#and --rebuild_step_ratio (or -r), default = 0.5.
+
+ninja -in alignment.fasta -out tree.tre --alph_type d --corr_type n 
