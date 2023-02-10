@@ -1,0 +1,20 @@
+#DESeq2 notes
+#from https://github.com/joey711/phyloseq/issues/445
+#March 2015
+#in trying to understand the role of geometric means in DESeq2
+
+The example gm_mean function provided in the tutorials has an important deviation from the formal mathematical definition of gm_mean, in that zeroes (and NA) are ignored. The "true" definition is undefined for NA and 0.0 for any vector that has even one zero. Of course this kind of sensitivity to zeros is a precarious situation for microbiome data where zeroes are the norm rather than the exception. Hence, I provided an alternative.
+
+#but see below, maybe better to give 0s a small number, and not ignore?
+#DESeq2 does not work well on zero-inflated datasets.
+
+The geometric means are used as a pseudoreference, for calculating sample-wise ratios and then the median of this gives the size factor. Then the size factors are used throughout the model: in fitting the estimated means through the GLM, and so in estimating dispersion. I'm still not sure what the best option for size factor estimation is when the data is very sparse you have one zero in every row. already the geometric means for a row are zero when a single sample has a zero, so if all rows have a single sample with a zero, then an alternate estimator must be used. I don't work regularly on such sparse datasets, so I hesitate to say what's the best thing to do. We are trying out an iterative, model-based size factor estimator in the devel branch (see 'type' in ?estimateSizeFactors), but this is still development work.
+
+On the other hand, very sparse count datasets, with large counts for single samples per row and the rest at 0, don't fit well to the negative binomial distribution. Here, the VST or simply shifted log, log(count+k), might be a safer choice than the rlog. A way that I test for sparsity is looking at a plot of the row sum of counts and the proportion of count which is in a single sample:
+
+rs <- rowSums(counts(dds))
+rmx <- apply(counts(dds), 1, max)
+plot(rs+1, rmx/rs, log="x")
+
+
+hi Ben, I think there are sparse datasets, in which row sums are often concentrated in single samples or a few samples, and then there are datasets where all rows have a zero, which pose a problem for the standard size factor estimator. I think that the technique of using non-zero counts to calculate size factors is a good workaround in the second case. From the looks of this plot, there are still many rows where the max count is a small proportion of total sum, and I think a good estimate of size factor could be estimated with this custom geometric means approach. Another note is that data transformed with varianceStabilizingTransformation() does correct for size factors, it just doesn't take the size factors directly into account when the transformation function is being calculated. A VST is calculated for the counts in the range s_j~=1 and then applied to K_ij/s_j, so there is correction for size factor through division.
