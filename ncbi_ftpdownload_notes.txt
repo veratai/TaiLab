@@ -1,0 +1,62 @@
+#to bulk and remotely download genomes from ftp site
+
+#e.g.
+#get cyanobacteria representative genomes from NCBI
+
+#search NCBI for representative genomes
+https://www.ncbi.nlm.nih.gov/genome/browse#!/prokaryotes/
+
+#use filters to choose Kingdom Bacteria, Subgroup Cyanobacteria/Melainabacteria, representative genomes
+#Download CSV file
+=cyano_rep_ncbigenomes.csv
+
+#put list of ftp sites in a file
+#make sure last one has new line at the end
+cyano_rep_ncbigenomes_ftp.txt
+
+#need to add data type extension to specify the file to download
+#for e.g.
+_protein.faa.gz  
+_genomic.fna.gz
+_cds_from_genomic.fna.gz
+
+#other data also available
+
+#use wget to download files, adding data type extension
+
+cat cyano_rep_ncbigenomes_ftp.txt | while read -r url ; do
+fname=$(echo $url | grep -o 'GCF_.*' | sed 's/$/_genomic.fna.gz/') ;
+wget "$url/$fname"
+done ;
+
+cat cyano_rep_ncbigenomes_ftp.txt | while read -r url ; do
+fname=$(echo $url | grep -o 'GCF_.*' | sed 's/$/_cds_from_genomic.fna.gz/') ;
+wget "$url/$fname"
+done ;
+
+#mv files to
+/data/representative_genomes/cyano_genomes_fna
+/data/representative_genomes/cyano_cds
+
+
+
+#OR
+while read -r url;
+do
+echo $url
+done < cyano_rep_ncbigenomes_ftp.txt
+
+
+#from https://www.biostars.org/p/344959/
+#or can use the datasets CLI tools (not yet installed)
+#If your starting point is a file with a list of NCBI assembly accessions, you can wrap the command shown above in a bash loop like this:
+
+cat assm_accs.txt | while read -r acc ; do
+    esearch -db assembly -query $acc </dev/null \
+        | esummary \
+        | xtract -pattern DocumentSummary -element FtpPath_GenBank \
+        | while read -r url ; do
+            fname=$(echo $url | grep -o 'GCA_.*' | sed 's/$/_genomic.fna.gz/') ;
+            wget "$url/$fname" ;
+        done ;
+    done
