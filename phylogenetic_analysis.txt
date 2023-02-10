@@ -1,0 +1,138 @@
+#building a phylogenetic tree
+#replace filenames with your own as needed, eg. for input files (-in, -s), output names (-out, -n), output directory (-w), 
+
+#prepare a file of sequences in fasta format for generating the phylogenetic tree
+#align sequences using mafft
+
+mafft sequences.fas > sequences_mafft.fas 
+
+#trim alignment to remove sequence ends and difficult to align regions
+trimal -in sequences_mafft.fas -out sequences_mafft_trim.fas -gappyout 
+
+### Using maximum likelihood with RAxML
+
+#find best tree given alignment
+#from 100 distinct starting trees
+# may need to specify full path for -w = output directory
+#add -T # to run on multiple cores
+# -p specifies a random number, so go ahead and change, choose another number 
+
+raxmlHPC-PTHREADS-AVX2 -m GTRCAT -p 38175 -d -N 100 -n sequences -s sequences_mafft_trim.fas -w output_directory
+
+
+## generate bootstrap trees (to get statistical support for each branch)
+#this code returns 500 bootstrapped trees
+# may need to specify full path for -w = output directory 
+#add -T # to run on multiple cores 
+# -p and -b specifies a random number, so go ahead and change, choose another number 
+
+raxmlHPC-PTHREADS-AVX2 -m GTRCAT -p 31415 -b 398123 -N 500 -n sequences_boot -s sequences_mafft_trim.fas -w boot_trees 
+
+#draw bipartition information on best tree (i.e. add bootstrap support to branches of best tree)
+# -t is the filename of the best tree
+# -z is the directory and prefix names of the bootstrap trees
+
+raxmlHPC-PTHREADS-AVX2 -f b -m GTRCAT -t RAxML_bestTree.sequences_BestTree -z boot_trees/RAxML_bootstrap.sequences_boot -n BestTreeWithBoot 
+
+
+#Filename of the best tree with bootstrap support as node labels = RAxML_bipartitions.BestTreeWithBoot
+# This file does not open in FigTree: RAxML_bipartitionsBranchLabels.BestTreeWithBoot
+ 
+ 
+### Using neighbor-joining with Ninja
+
+#pertinent parameters:
+#--alph_type, d for dna or a for amino acid
+#--corr_type, n for none, j for jukes-cantor, k for k2parameter (default for dna), s for Fast-tree score-like correction (default for amino acid)
+#also --clust_size (or -s), default = 30 - need to read paper to find out what this is for
+#and --rebuild_step_ratio (or -r), default = 0.5.
+
+ninja --in alignment.fasta --out tree.tre --alph_type d --corr_type n 
+
+
+### Using maximum likelihood with iqtree
+#run iqtree (with modelFinder), 1000 standard non-parametric bootstrap, 5000 ultrafast bootstrap replicates, SH-like approximate likelihood ratio test with 5000 replicates
+#nt is number of threads
+
+iqtree -s alignment.fas -b 1000 -bb 5000 -alrt 5000 -nt AUTO
+
+#note which is model is used, best model according to BIC
+
+#maximum likelihood tree with support, numbers in parentheses are SH-aLRT support (%) / standard bootstrap support (%) / ultrafast bootstrap support (%)
+alignment.fas.treefile
+#analysis report
+alignment.fas.iqtree
+
+
+#### using Bayesian inference with mrbayes
+#convert alignment to nexus format using Aliview, removing illegal characters, i.e. spaces
+# = alignment.nexus
+
+#start mrbayes
+mb
+#load data
+execute alignment.nexus
+
+#set model parameters
+# number of nucleotide substitution rates (nst) = 6 (so model all possible substitution rates)
+# substitution rate model (rates) = gamma (gamma-shaped variation, not using proportion of invariable sites)
+# number of discrete categories from gamma distribution (Ngammacat) = 4, default
+lset nst=6 rates=gamma
+
+#priors, left at defaults
+#to see model settings
+showmodel
+showparams
+
+#set mcmc parameters
+#run for 1000000 generations, sampling every 500 generations, diagnostics every 5000 generations
+#will get 2000 posterior trees (1000000/500)
+#burn-in, use defaults:  relburnin=yes, burninfrac=0.25 (discard first 25% of cold chain)
+#number of chains (Nchains) = 4, default, one cold and three heated
+#number of runs (Nruns) = 2, default
+
+mcmcp ngen=1000000 samplefreq=500 printfreq=1000 diagnfreq=5000
+
+#check parameters
+help mcmc
+
+#run analysis
+mcmc
+
+#check diagnostics
+#numbers in square brackets = cold chain - these should switch columns (indicates swapping states with heated chains)
+
+#check for standard deviation of split frequencies is < 0.01, should approach 0 (indicating that two tree samples are becoming increasingly similar)
+#add more generations if necessary
+
+#summarize parameter values
+sump
+#check that potential scale reduction factor (PSRF) is reasonably close to 1.0 for all parameters
+#check that effective sample size (EFF) is > 100.
+
+#summarize trees
+sumt
+
+#consensus tree with clade support values
+alignment.nexus.con.tre 
+
+# .mcmc file will have average standard deviation of split frequencies
+
+
+#references
+
+Stamatakis, A. 2014. RAxML Version 8: A tool for phylogenetic analysis and post-analysis of large phylogenies. Bioinformatics. 30:1312-1313.
+
+Ronquist F, Teslenko M, van der Mark P, Ayres DL, Darling A, Höhna S, Larget B, Liu L, Suchard MA, Huelsenbeck JP. MrBayes 3.2: efficient Bayesian phylogenetic inference and model choice across a large model space. Syst Biol. 2012 May;61(3):539-42.
+
+Lam-Tung Nguyen, Heiko A. Schmidt, Arndt von Haeseler, and Bui Quang Minh
+(2015) IQ-TREE: A fast and effective stochastic algorithm for estimating
+maximum likelihood phylogenies. Mol Biol Evol, 32:268-274.
+https://doi.org/10.1093/molbev/msu300
+
+Subha Kalyaanamoorthy, Bui Quang Minh, Thomas KF Wong, Arndt von Haeseler,
+and Lars S Jermiin (2017) ModelFinder: Fast model selection for
+accurate phylogenetic estimates. Nature Methods, 14:587–589.
+https://doi.org/10.1038/nmeth.4285
+
+Wheeler, T.J. 2009. Large-scale neighbor-joining with NINJA. In S.L. Salzberg and T. Warnow (Eds.), Proceedings of the 9th Workshop on Algorithms in Bioinformatics. WABI 2009, pp. 375-389. Springer, Berlin.
