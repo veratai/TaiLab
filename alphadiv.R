@@ -77,7 +77,8 @@ ggplot(qiimez.rarerich, aes(x=sample_type_order, y=Shannon, fill=sample_type)) +
   theme(axis.text.x = element_text(size=15, angle=45, colour="black"), axis.text.y = element_text(size=12, colour="black"), axis.title.y = element_text(size=15), axis.title.x = element_blank()) +
   #theme(legend.position="none") +     # to remove legend from plot
   ggtitle("qiimez.r.alpha_diversity")
-ggsave("qiimez.r.alpha_diversity.pdf", width=5, height=7) 
+#export plot as pdf
+ggsave("qiimez.r.alpha_diversity.pdf", width=5, height=7, useDingbats=FALSE) 
 
 #e.g. T-tests, check if alpha diversity is significantly different
 
@@ -90,56 +91,4 @@ t.test(int$Shannon, sand$Shannon)
 #or can do anova, and post-hoc tests
 
 
-
-#Beta diversity
-
-#calculate distance metrics
-#modify distance metric as needed
-
-#eg. Unweighted UniFrac, using rarefied data
-ordu = ordinate(qiimez.rare, "PCoA", "unifrac", weighted=FALSE)
-plot_ordination(qiimez.rare, ordu, color="IntervalMidpoint") + 
-  geom_point(size=5, alpha=0.75) + 
-  #scale_color_manual(values = c("#009E73", "#E69F00", "#56B4E9")) +  #use to control colours
-  #scale_shape_manual(values=c(8, 1, 17)) +   #use to control shape
-  ggtitle ("qiimez.rare.uwUF.pcoa")
-#save plot
-ggsave("qiimez.rare_uwuf_pcoa.pdf")
-
-
-#e.g. Bray-Curtis, using rarefied data
-ordu.bc = ordinate(qiimez.rare, "PCoA", "bray")
-plot_ordination(qiimez.rare, ordu.bc, color="IntervalMidpoint") + 
-  geom_point(size=5, alpha=0.75) + 
-  #scale_color_manual(values = c("#009E73", "#E69F00", "#56B4E9")) +  #use to control colours
-  #scale_shape_manual(values=c(8, 1, 17)) +   #use to control shape
-  ggtitle ("qiimez.rare.BC.pcoa")
-#save plot
-ggsave("qiimez.rare_bc_pcoa.pdf")
-
-
-#using adonis to check for significant differences by group
-
-#run adonis, testing distance against sample_type, 999 permutations by default
-library(vegan)
-df = as(sample_data(qiimez.rare), "data.frame")
-d = distance(qiimez.rare, "unifrac")
-sample_type_uf_adonis = adonis(d ~ sample_type, df)
-sample_type_uf_adonis
-
-
-#adonis sensitive to differences in dispersion of data
-#i.e differences in dispersion will results in significant adonis result that is not due to differences in mean/variance
-
-#check dispersion of data
-betadis <- betadisper(d, df$sample_type)
-#output results
-betadis
-
-#check if there are significant differences in dispersion by group using anova
-anova(betadis)    
-plot(betadis)
-boxplot(betadis)
-#use Tukey's honest significant difference to examine which groups are significantly different from one another
-plot(TukeyHSD(betadis))
 
