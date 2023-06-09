@@ -1,4 +1,4 @@
-# code to do ordination via PCoA, through phyloseq functions
+# code to do betadiversity ordination via PCoA, through phyloseq functions
 # test for significance of groups using PERMANOVA
 # plot PCoA
 # and also add species score arrows to these plots 
@@ -12,6 +12,7 @@ library(ggplot2)
 
 setwd("/Users/veratai/Projects/SunfishLakePlanktothrix/cyano16S_analysis/")
 
+#load data as phyloseq object
 sunfish <- qza_to_phyloseq(
   features="sunfish_cyano16S_filteredtable_ASVmin7.qza",
   tree="unrooted-tree-sunfish-cyano16S.qza",
@@ -19,8 +20,7 @@ sunfish <- qza_to_phyloseq(
   metadata = "sunfish_metadata_VT.txt"
 )
 
-#useful to get best taxonomic hit for an ASV
-#can try using microbiomeutilities get_best_hit function (not sure what it is called)
+#best to use data that is taxonomically cleaned-up
 
 
 #example of subsetting data based on a taxonomic group
@@ -50,7 +50,11 @@ plot_ordination(sunfish, ord.uf, color="IntervalMidpoint") +
   #scale_color_manual(values = colScale.sample_type) + 
   #scale_shape_manual(values=shape.beach) + 
   ggtitle ("sunfish16S.uwUF.pcoa")
-#ggsave("sunfish16S_uwuf_pcoa.pdf")
+
+#to export plot as pdf
+ggsave("sunfish16S_uwuf_pcoa.pdf", useDingbats=FALSE)
+#***symbols not interpreted correctly in Adobe Illustrator - a font issue, so make sure to specify useDingbats=FALSE
+
 
 #with bray-curtis data
 ord.bc = ordinate(sunfish, "PCoA", "bray")
@@ -59,7 +63,9 @@ plot_ordination(sunfish, ord.bc, color="IntervalMidpoint") +
   #scale_color_manual(values = colScale.sample_type) + 
   #scale_shape_manual(values=shape.beach) + 
   ggtitle ("sunfish16S.BC.pcoa")
-#ggsave("sunfish16S_bc_pcoa.pdf")
+
+#export plot
+ggsave("sunfish16S_bc_pcoa.pdf", useDingbats=FALSE)
 
 
 #run adonis (aka PERMANOVA), testing distance against sample_type, 999 permutations by default
@@ -137,7 +143,8 @@ sp_score_plot +
   ggtitle("sunfish16S.uwUF.pcoa + species scores, phylum labeled")
 
 
-#ggsave("sunfish16S.uwUF.pcoa_spscores.pdf", useDingbats=FALSE)
+#export plot
+ggsave("sunfish16S.uwUF.pcoa_spscores.pdf", useDingbats=FALSE)
 #***symbols not interpreted correctly in Adobe Illustrator - a font issue, so make sure to specify useDingbats=FALSE
 
 
