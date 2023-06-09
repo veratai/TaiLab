@@ -1,0 +1,380 @@
+## general steps for initial processing and analysis of metabarcode data through qiime2 (Tai Lab)
+##updated June 2023
+
+****
+
+# make your own text file to write your own code and analysis notes specifically for the data you are analyzing
+
+# when preparing code, replace filenames and paths with names/prefixes that specifically identify your analysis (e.g. zoop18S, ginseng16S, brace2023)
+
+##write this code in your notes, then copy and paste to run
+# then you will have a record of the code and the parameters used to process/analyze your data
+
+****
+
+#to transfer files from local Mac/Unix to cardinal
+#on local machine, change directory to where you want the files copied, or specify directory
+
+scp ~/path/file username@cardinal.biology.uwo.ca:~/path/to/file
+
+#to transfer files from cardinal to local Mac/Unix
+#on local machine, change directory to where you want the files copied, or specify directory
+
+scp username@cardinal.biology.uwo.ca:~/path/to/file ./
+
+#Or can download FileZilla
+
+****
+
+#to run jobs in the background using screen
+#to launch a screen
+screen -S qiime
+source activate qiime2-2017.12
+
+#to get out of screen
+ctrl A+D
+#to get back into screen
+screen -r qiime
+
+#to completely exit and end/logout of screen
+exit
+
+****
+
+##OPTIONAL - check data quality using FastQC
+## check some of them, do not have to do all
+mkdir fastqc_out
+#may need to unzip the files
+gunzip -c /data/seqarchive/project/file.fastq.gz > fastqc_out/file.fastq
+#running fastqc, on 4 threads
+fastqc -t 4 file.fastq -o fastqc_out/
+
+## OPTIONAL - trim adapters/primers from sequences
+# or do this within qiime2
+
+#trim off bad quality, and adapters from paired-end reads
+#-q quality cutoff, 3' and 5' ends
+#-n maximum number of times adapter will be removed
+#-m minimum read length
+#-e error-rate by default is 0.1, so for 20 nt primer allows for 2 mismatches
+#-a 3' adapter on first read (= rev comp. of reverse primer (CYAN377R_VT = CCCATKGCGGAARATTCCCC)
+#-A 3' adapter on paired read (= rev comp. of forward primer (CYAN108F = ACGGGTGAGTAACRCGTRA))
+
+cutadapt -q 15,15 -n 1 -m 100 -a GGGGAATYTTCCGCMATGGG -A TYACGYGTTACTCACCCGT -o out1_cutadapt.fastq -p out2_cutadapt.fastq in1.fastq in2.fastq
+
+****
+
+#PROCESSING DATA USING QIIME2
+
+#current version has been updated to version 2022.2
+# code may need to be adjusted to account for new version
+
+#activate qiime2
+source activate qiime2-2022.2
+
+#to deactivate qiime, when finished, need to use tools outside of qiime, or logging out 
+source deactivate
+
+##to check the available options for any command, just run the function without options
+#e.g. qiime tools import
+
+
+#IMPORT paired-end sequences, 2 files per sample (forward and reverse)
+#i.e. already demultiplexed (i.e. individuals files for each sample)
+#need a manifest file
+#The manifest file is tab-separated, specifying the path to the fastq files:
+#DO NOT start your sample names with numbers (0-9), or any other special character (e.g. *^$, etc...)
+
+sample-id     forward-absolute-filepath       reverse-absolute-filepath
+sample1   filepath/seqs_R1.fastq.gz   filepath/seqs_R2.fastq.gz
+
+#import the sequences
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path manifestfile.csv \
+  --output-path sunfish16S_demux.qza \
+  --input-format PairedEndFastqManifestPhred33V2
+
+# or for single end data
+qiime tools import \
+  --type 'SampleData[SequencesWithQuality]' \
+  --input-path manifestfile.csv \
+  --output-path singleendseqs_demux.qza \
+  --source-format SingleEndFastqManifestPhred33V2
+
+#get summary of imported sequences
+qiime demux summarize \
+  --i-data sunfish16S_demux.qza \
+  --o-visualization sunfish16S_demux.qzv
+
+# this visualization file (or any other .qzv files) can be viewed using the qiime2 viewer
+# transfer the file to your local computer 
+# then use a web browser to go to this site and view the information in the file
+# https://view.qiime2.org/
+# or run this command:
+qiime tools view sunfish16S_demux.qzv
+
+#viewing this file shows a summary of the number of reads per sample
+#go to the interactive quality plot tab to view a summary of quality scores along each position of the sequence reads
+#quality scores > 30 is very good, < 15 is getting to be low quality
+
+#are your sequences generally good quality?  How long are the sequence reads before the average quality goes below 15?
+
+
+#TRIM 3' ADAPTERS
+# can do cutadapt step here, if didn't do previously
+#use cutadapt to trim/remove adapter sequences on the 3' end of reads, meaning PCR product was short and sequence read went through to the 3' end of the PCR product
+
+#p-adapter-f is looking for the reverse primer on the 3' end of the first, forward read - so need to enter the reverse complement of the reverse primer e.g. reverse complement of CYAN377R_VT = CCCATKGCGGAARATTCCCC
+
+#p-adapter-r is looking for the forward primer on the 3' end of the second, reverse read - so need to enter the reverse complement of the forward primer e.g. reverse complement of CYAN108F = ACGGGTGAGTAACRCGTRA
+
+#cut adapters
+qiime cutadapt trim-paired \
+--p-cores 5 \
+--i-demultiplexed-sequences sunfish16S_demux.qza \
+--p-adapter-f GGGGAATYTTCCGCMATGGG \
+--p-adapter-r TYACGYGTTACTCACCCGT \
+--o-trimmed-sequences sunfish16S_cutadapt.qza
+
+#get summary and visualization of trimmed sequences
+qiime demux summarize \
+  --i-data sunfish16S_cutadapt.qza \
+  --o-visualization sunfish16S_cutadapt.qzv
+
+#view/examine output by opening .qzv files with the qiime2 viewer on the web (https://view.qiime2.org/)
+# will likely have same number of reads as pre-trimmed data, but read lengths shorter if trimming was required
+# look at interactive quality plot for seq quality for F and R reads
+
+# determine how much of 5' and 3' ends need to be trimmed based on quality cut-off
+# ideally trim where any read has quality below 15, or mean quality goes below 20.
+#but also have to consider not trimming so much for paired reads so that seqs do not merge anymore
+
+#TRIM seqs, CORRECT errors based on quality (de-noise), de-replicate, MERGE, REMOVE CHIMERAS using dada2 (https://benjjneb.github.io/dada2/index.html)
+# record the rationale for the criteria or thresholds that you will use below to specify the trimming parameters
+# e.g. trim F reads at the end where any read has a quality that goes below 15
+# e.g. trim R reads at the end where any read has a quality that goes below 15
+# e.g. trim F and R reads at the beginning to remove primer seqs, use length of the F and R primers
+
+#may want to run this in the background as it can take a long time
+#can use screen in UNIX, see instructions at the top of this file
+#ask if you need further help
+
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs sunfish16S_cutadapt.qza \
+  --o-table sunfish16S_otutable \
+  --o-representative-sequences sunfish16S_repseqs \
+  --o-denoising-stats sunfish16S_dada2stats \
+  --p-trim-left-f 18 \
+  --p-trim-left-r 20 \
+  --p-trunc-len-f 150 \
+  --p-trunc-len-r 150 \
+  --p-n-threads 15 \
+
+# output files:
+# sunfish16S_dada2stats.qza records how many reads were filtered from each sample and why
+# sunfish16S_otutable.qza - which is the otu/feature/asv table, i.e for each amplified sequence variant (ASV), the number of sequence reads of the ASV is counted for each sample
+# sunfish16S_repseqs.qza - which contains the sequence (a representative sequence) for each ASV
+
+
+#Examine results
+
+#summarize and view stats file
+qiime metadata tabulate \
+  --m-input-file sunfish16S_dada2stats.qza \
+  --o-visualization sunfish16S_dada2stats.qzv
+
+# check results, columns are # of reads kept after filtering based on Q score, denoising sequences, merging F and R reads, and chimera filtering.
+# note how many sequences were kept versus removed/filtered.  Is it significant?  Is the data generally good quality, so most data was kept?  
+# if a lot of data was lost after merging, may want to just analyze F reads
+# or may need to tweak truncation parameters
+
+#now need a sample metadata table, that describe the samples and any other collection info
+#make a tab-separated file with SampleID as the first column (format as below, header line starts with #)
+#the SampleID MUST exactly match the sample-id in the manifest file, i.e. used when the sequence data was imported into qiime
+#add other columns used to group/label samples, or other measurements from the samples
+#SampleID	location	date
+
+#get/view summary of otu table
+qiime feature-table summarize \
+  --i-table sunfish16S_otutable.qza \
+  --o-visualization sunfish16S_otutable.qzv \
+  --m-sample-metadata-file sunfish16S_metadata.txt
+
+#From the visualization file, the summary shows the total number of features/ASVs and reads (frequency), the distribution of sequence reads (i.e. frequency) assigned to each sample, and the distribution of sequence reads assigned to each ASV (feature).   
+#use this info to decide on criteria to filter out low frequency ASVs and samples with low numbers of reads
+#Feature detail tab shows info for each ASV, i.e. the number of reads, number of samples that this ASV occurs.
+
+#optional - get summary of denoised, merged sequences, use to view the sequences of the representative reads
+qiime feature-table tabulate-seqs \
+  --i-data sunfish16S_repseqs.qza \
+  --o-visualization sunfish16S_repseqs.qzv
+
+#optional - can export these sequences in fasta format if needed
+qiime tools export \
+  --input-path sunfish16S_repseqs.qza \
+  --output-path sunfish16S_repseqs
+#generates DNA_sequences.fasta
+#rename
+mv DNA_sequences.fasta sunfish16S_repseqs.fasta
+
+
+#FILTER FEATURE TABLE (i.e otu or asv table) based on the distribution of reads for each feature
+# using first quartile for these data is good as a cut-off, or if there is lots of data, may not need to cut off.  At a minimum, cut off ASVs that are represented by 5 or less reads
+# here using 7 seq reads per ASV as a cutoff
+
+qiime feature-table filter-features \
+   --i-table sunfish16S_otutable.qza \
+   --p-min-frequency 7 \
+   --p-min-samples 1 \
+   --o-filtered-table sunfish16S_otutable_ASVmin7.qza
+
+
+#FILTER SAMPLES that have too few reads
+#this could depend on sampling effort, rarefaction analysis indicating that too few reads were sequenced to adequately describe the community
+#at least 1000 reads per sample is OK, 500 is tolerable
+#ideally we want more data, but this will depend on the quality of amplicons, the sequencing run, etc...
+#may want to do this before filtering ASVs, because this filtering may end up removing reads from low abundance ASVs 
+
+qiime feature-table filter-samples
+	--i-table sunfish16S_otutable_ASVmin7.qza
+	--p-min-frequency 500
+	--o-filtered-table sunfish16S_otutable_ASVmin7_samplemin500.qza
+
+#get summary/visualization of otutable after ASV and sample filtering
+qiime feature-table summarize \
+  --i-table sunfish16S_otutable_ASVmin7_samplemin500.qza \
+  --o-visualization sunfish16S_otutable_ASVmin7_samplemin500.qzv \
+  --m-sample-metadata-file sunfish16S_metadata.txt
+
+
+#FILTER REPRESENTATIVE SEQUENCES (repseqs)
+#so that repseqs matches the ASVs since some were removed during filtering
+#this is optional, because qiime will ignore the sequences that are not in the otu table
+#but other programs may need to have all the otus match in the table, repseqs and the phylo tree
+#so good idea to do this
+#and along with the filtered otu table, the filtered repseqs and phylogenetic tree will essentially be the processed/curated dataset for any further analyses
+
+qiime feature-table filter-seqs \
+  --i-data sunfish16S_repseqs.qza \
+  --i-table sunfish16S_otutable_ASVmin7_samplemin500.qza \
+  --o-filtered-data sunfish16S_repseqs_ASVmin7_samplemin500.qza
+
+#GENERATE PHYLOGENETIC TREE
+#align with mafft
+qiime alignment mafft \
+  --i-sequences sunfish16S_repseqs_ASVmin7_samplemin500.qza \
+  --o-alignment sunfish16S_repseqs_ASVmin7_samplemin500_aligned.qza
+
+#mask highly variable sites
+qiime alignment mask \
+  --i-alignment sunfish16S_repseqs_ASVmin7_samplemin500_aligned.qza \
+  --o-masked-alignment sunfish16S_repseqs_ASVmin7_samplemin500_aligned_masked.qza
+
+#generate tree with FastTree
+qiime phylogeny fasttree \
+  --i-alignment sunfish16S_repseqs_ASVmin7_samplemin500_aligned_masked.qza \
+  --o-tree sunfish16S_repseqs_ASVmin7_samplemin500_unrooted_tree.qza
+
+#apply midpoint rooting
+qiime phylogeny midpoint-root \
+  --i-tree sunfish16S_repseqs_ASVmin7_samplemin500_unrooted_tree.qza \
+  --o-rooted-tree sunfish16S_repseqs_ASVmin7_samplemin500_rooted_tree.qza
+
+
+#CALCULATE ALPHA and BETA DIVERSITY METRICS
+#samples are rarefied (i.e. reads randomly sampled to normalize sampling effort across samples) using p-sampling-depth based on # of reads per sample, as seen in sunfish16S_otutable_ASVmin7_samplemin500.qzv
+#choose depth as the number of reads in the sample with the fewest reads
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny sunfish16S_repseqs_ASVmin7_samplemin500_rooted_tree.qza \
+  --i-table sunfish16S_otutable_ASVmin7_samplemin500.qza \
+  --p-sampling-depth 1109 \
+  --m-metadata-file sunfish16S_metadata.tsv \
+  --output-dir core-metrics-results
+
+#this calculates alpha and beta diversity metrics using several different methods
+#beta diversity metrics are also analyzed using principle coordinates analysis (PCoA), and the visualization files (.qzv) of these PCoAs can be viewed using qiime2 view
+
+#will also want to consider compositional analyses, e.g. using other transformations (e.g. center-log ratio) instead of rarefying (p-sampling-depth) - but cannot do this in qiime
+
+#can do stats analyses on these results in qiime
+
+#in general though, will want to do these analyses in R
+#i.e. import otutable, taxonomy (see below), tree and metadata into R, then go from there
+
+
+#TAXONOMIC ASSIGNMENT/IDENTIFICATION
+
+#need trained dataset
+#be sure to use the appropriate one, have many downloaded and prepared for qiime
+#may possibly need to generate a new classifier, please ask if you are unsure
+#the code below is for 16S 515F to 806R amplicons
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier /data/tax_databases/silva/silva138_qiime2_classifiers/silva-138-99-515-806-nb-classifier.qza \
+  --i-reads sunfish16S_repseqs_ASVmin7_samplemin500.qza \
+  --o-classification sunfish16S_taxonomy_ASVmin7_samplemin500.qza
+
+#optional - get visualization of table with ASV classification and confidence
+qiime metadata tabulate \
+  --m-input-file sunfish16S_taxonomy_ASVmin7_samplemin500.qza \
+  --o-visualization sunfish16S_taxonomy_ASVmin7_samplemin500.qzv
+
+
+#generate barplots showing relative abundance of reads at different taxonomic levels by sample
+
+qiime taxa barplot \
+  --i-table sunfish16S_otutable_ASVmin7_samplemin500.qza \
+  --i-taxonomy sunfish16S_taxonomy_ASVmin7_samplemin500.qza \
+  --m-metadata-file sunfish16S_metadata.txt \
+  --o-visualization sunfish16S_taxa_barplots_ASVmin7_samplemin500.qzv
+
+#view visualizations using qiime2 viewer
+
+
+
+
+#if needed - EXPORTING qiime files to other formats
+#use qiime tools export to export data out of qiime
+
+#eg. to export table into BIOM v2.1.0 format
+qiime tools export \
+  --input-path feature-table.qza \
+  --output-path exported-feature-table
+#generates feature-table.biom
+
+#to convert from biom format to .txt
+biom convert -i feature-table.biom -o feature-table.tsv --to-tsv
+
+
+#export taxonomy to tsv table
+qiime tools export \
+  --input-path taxonomy.qza \
+  --output-path ./
+
+#generates taxonomy.tsv
+#using nano, change header from: Feature ID	Taxon	Confidence
+#to:
+#OTUID	taxonomy	confidence 
+
+#to add taxonomy to OTU table in BIOM format
+biom add-metadata -i feature-table.biom -o table-with-taxonomy.biom --observation-metadata-fp taxonomy.tsv --sc-separated taxonomy
+
+#then convert BIOM format to tsv
+biom convert -i table-with-taxonomy.biom -o table-with-taxonomy.biom.tsv --to-tsv --header-key taxonomy
+
+
+#eg. to export newick tree
+qiime tools export \
+  --input-path unrooted-tree.qza \
+  --output-path exported-tree
+
+
+#export sequences
+qiime tools export \
+  --input-path sunfish16S_repseqs.qza \
+  --output-path sunfish16S_repseqs
+#generates DNA_sequences.fasta
+#rename
+mv DNA_sequences.fasta sunfish16S_repseqs.fasta

@@ -9,7 +9,7 @@ library(RColorBrewer)
 #set working directory
 setwd("/Users/vera/Projects/")
 
-#qiime2 files imported as a phyloseq object named qiimez
+#import qiime2 files as a phyloseq object named qiimez
 qiimez <- qza_to_phyloseq(
   features="asvtable.qza",
   tree="unrooted-tree.qza",

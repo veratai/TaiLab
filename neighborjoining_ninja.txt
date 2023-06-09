@@ -6,4 +6,4 @@
 #also --clust_size (or -s), default = 30 - need to read paper to find out what this is for
 #and --rebuild_step_ratio (or -r), default = 0.5.
 
-ninja -in alignment.fasta -out tree.tre --alph_type d --corr_type n 
+ninja --in alignment.fasta --out tree.tre --alph_type d --corr_type n 
