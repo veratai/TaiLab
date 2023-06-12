@@ -190,10 +190,10 @@ qiime metadata tabulate \
 # or may need to tweak truncation parameters
 
 #now need a sample metadata table, that describe the samples and any other collection info
-#make a tab-separated file with SampleID as the first column (format as below, header line starts with #)
+#make a tab-separated file with SampleID as the first column (format as below)
 #the SampleID MUST exactly match the sample-id in the manifest file, i.e. used when the sequence data was imported into qiime
 #add other columns used to group/label samples, or other measurements from the samples
-#SampleID	location	date
+sample-id	location	date
 
 #get/view summary of otu table
 qiime feature-table summarize \
