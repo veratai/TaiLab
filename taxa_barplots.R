@@ -39,7 +39,7 @@ rank2glommed.relA <- transform_sample_counts(rank2glommed, function(x) x / sum(x
 rank2glommed.relA.df <- psmelt(rank2glommed.relA)
 
 #make custom colour palette, using colour brewer  
-myPalette = c(brewer.pal(length(levels(rank2glommed.relA.df$Rank2)), "Paired"))
+myPalette = c(brewer.pal(length(levels(as.factor(rank2glommed.relA.df$Rank2))), "Paired"))
 
 #plot
 p <- ggplot(rank2glommed.relA.df, aes(x=SampleID, y=Abundance, fill=Rank2, order = as.factor(Rank2)))

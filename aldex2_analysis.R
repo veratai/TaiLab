@@ -69,9 +69,9 @@ sample_type_is_vec <- sample_data(qiimez_interstitial_sand)$sample_type
 x <- aldex.clr(otu_table_is_df, sample_type_is_vec, mc.samples=128, denom="iqlr", verbose=TRUE)
 
 #performs the Welch’s t and Wilcoxon rank test for the instance when there are only two conditions
-x.tt <- aldex.ttest(x, sample_type_is_vec, paired.test=FALSE)
+x.tt <- aldex.ttest(x, paired.test=FALSE)
 #estimate effect size and the within and between condition values in the case of two conditions
-x.effect <- aldex.effect(x, sample_type_is_vec, include.sample.summary=FALSE, verbose=TRUE)
+x.effect <- aldex.effect(x, include.sample.summary=FALSE, verbose=TRUE)
 #t-test and effect data are merged into one object.
 x.all <- data.frame(x.tt,x.effect)
 

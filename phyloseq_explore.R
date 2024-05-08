@@ -61,7 +61,8 @@ tapply(reads_sample$total_reads, reads_sample$location, summary)
 
 #get count of the number of otus per sample, i.e. otu/asv richness
 #count number of rows, i.e. ASVs, where read count is > 0
-asvs_sample <- apply(otu_table(sunfish),MARGIN = 2,function(x) sum(x > 0))
+asvs_sample <- as.data.frame(apply(otu_table(sunfish),MARGIN = 2,function(x) sum(x > 0)))
+colnames(asvs_sample) <- "num_asvs"
 #can plot histogram as above, or get summary stats
 
 #get count of the number of reads per otu/asv
@@ -224,7 +225,7 @@ name_bad_taxa <- function(ps_obj, include_rank = T, bad_label = "Unidentified_<t
   # Fill in NAs using the value above
   taxa_long <- taxa_long %>%
     mutate(na = is.na(tax)) %>%
-    group_by(row_name) %>%
+    group_by(asv) %>%
     fill(tax)
   
   # Create na_labels, replacing <tax> with tax (value above)
@@ -248,21 +249,23 @@ name_bad_taxa <- function(ps_obj, include_rank = T, bad_label = "Unidentified_<t
     select(asv, rank, bad_label) %>%
     pivot_wider(names_from = rank, values_from = bad_label) %>%
     as.matrix()
-  row.names(taxa_mat) <- taxa_mat[,"row_name"]
-  taxa_mat <- taxa_mat[,colnames(taxa_mat) != "row_name"]
+  row.names(taxa_mat) <- taxa_mat[,"asv"]
+  taxa_mat <- taxa_mat[,colnames(taxa_mat) != "asv"]
   tax_table(ps_obj) <- taxa_mat
   
   return(ps_obj)
 }
 
-
-#set fix_taxa to find the string in the taxa names that need fixing
-fix_taxa = "uncultured"
+#check taxa names in each rank to see which names need fixing or replacing
+get_taxa_unique(sunfish_prokonly, "Species")
 
 #copy phyloseq object to new variable name
 sunfish_curated <- sunfish_prokonly
+
+#set fix_taxa to find the string in the taxa names that need fixing
+fix_taxa = "uncultured"
 #run name_na_taxa function
-sunfish_curated <- name_bad_taxa(sunfish_prokonly, bad_label = "unidentified_<tax>", replace=fix_taxa)
+sunfish_curated <- name_bad_taxa(sunfish_curated, bad_label = "unidentified_<tax>", replace=fix_taxa)
 
 #run fix_taxa and name_bad_taxa function again to replace a different taxon name
 #e.g. repeat with
@@ -271,7 +274,7 @@ fix_taxa = "unidentified"
 fix_taxa = "metagenome"
 
 #check taxa names in each rank to see if there are other names that need replacing
-get_taxa_unique(sunfish_prokonly, "Species")
+get_taxa_unique(sunfish_curated, "Species")
 
 
 

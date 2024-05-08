@@ -1,0 +1,19 @@
+#colour palettes for R
+
+# a good resource for most colour palettes for R
+https://github.com/EmilHvitfeldt/r-color-palettes?tab=readme-ov-file
+
+#palettes
+
+library(pals)
+library(ggsci)
+library(viridis)
+library(RColorBrewer)
+
+
+#to add more colours to a colour palette
+myPalette <- colorRampPalette(pal_d3(palette="category20")(20))(32)
+
+#to specify a specific number of colours from a palette
+myPalette = c(brewer.pal(length(levels(classglommed.relA.df$Class)), "Paired"))
+

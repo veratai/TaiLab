@@ -44,8 +44,8 @@ shape.beach <- c(8, 1, 17, 18, 16)
 colScale.sample_type <- c("#00BA38", "#F8766D", "#619CFF")
 
 #Unweighted UniFrac, color is based on a category from metadata
-ord.uf = ordinate(sunfish, "PCoA", "unifrac", weighted=FALSE)
-plot_ordination(sunfish, ord.uf, color="IntervalMidpoint") + 
+ord.uf = ordinate(sunfish.r, "PCoA", "unifrac", weighted=FALSE)
+plot_ordination(sunfish.r, ord.uf, color="IntervalMidpoint") + 
   geom_point(size=5, alpha=0.75) + 
   #scale_color_manual(values = colScale.sample_type) + 
   #scale_shape_manual(values=shape.beach) + 
@@ -57,8 +57,8 @@ ggsave("sunfish16S_uwuf_pcoa.pdf", useDingbats=FALSE)
 
 
 #with bray-curtis data
-ord.bc = ordinate(sunfish, "PCoA", "bray")
-plot_ordination(sunfish, ord.bc, color="IntervalMidpoint") + 
+ord.bc = ordinate(sunfish.r, "PCoA", "bray")
+plot_ordination(sunfish.r, ord.bc, color="IntervalMidpoint") + 
   geom_point(size=5, alpha=0.75) + 
   #scale_color_manual(values = colScale.sample_type) + 
   #scale_shape_manual(values=shape.beach) + 
