@@ -11,6 +11,11 @@ library(viridis)
 library(RColorBrewer)
 
 
+#show colours in a palette
+library(scales)
+show_col(pal_d3(palette="category20"))
+
+
 #to add more colours to a colour palette
 myPalette <- colorRampPalette(pal_d3(palette="category20")(20))(32)
 

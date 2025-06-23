@@ -29,7 +29,7 @@ scp username@cardinal.biology.uwo.ca:~/path/to/file ./
 #to run jobs in the background using screen
 #to launch a screen
 screen -S qiime
-source activate qiime2-2017.12
+source activate qiime2-2022.2
 
 #to get out of screen
 ctrl A+D
@@ -38,6 +38,9 @@ screen -r qiime
 
 #to completely exit and end/logout of screen
 exit
+
+#when finished running qiime2 code, deactivate the qiime2 package
+conda deactivate
 
 ****
 
@@ -73,7 +76,7 @@ cutadapt -q 15,15 -n 1 -m 100 -a GGGGAATYTTCCGCMATGGG -A TYACGYGTTACTCACCCGT -o 
 source activate qiime2-2022.2
 
 #to deactivate qiime, when finished, need to use tools outside of qiime, or logging out 
-source deactivate
+conda deactivate
 
 ##to check the available options for any command, just run the function without options
 #e.g. qiime tools import
@@ -100,7 +103,7 @@ qiime tools import \
   --type 'SampleData[SequencesWithQuality]' \
   --input-path manifestfile.csv \
   --output-path singleendseqs_demux.qza \
-  --source-format SingleEndFastqManifestPhred33V2
+  --input-format SingleEndFastqManifestPhred33V2
 
 #get summary of imported sequences
 qiime demux summarize \
@@ -147,14 +150,22 @@ qiime demux summarize \
 # look at interactive quality plot for seq quality for F and R reads
 
 # determine how much of 5' and 3' ends need to be trimmed based on quality cut-off
-# ideally trim where any read has quality below 15, or mean quality goes below 20.
+# ideally trim where any read has quality below 15, or median quality goes below 20.
 #but also have to consider not trimming so much for paired reads so that seqs do not merge anymore
 
 #TRIM seqs, CORRECT errors based on quality (de-noise), de-replicate, MERGE, REMOVE CHIMERAS using dada2 (https://benjjneb.github.io/dada2/index.html)
 # record the rationale for the criteria or thresholds that you will use below to specify the trimming parameters
-# e.g. trim F reads at the end where any read has a quality that goes below 15
-# e.g. trim R reads at the end where any read has a quality that goes below 15
-# e.g. trim F and R reads at the beginning to remove primer seqs, use length of the F and R primers
+# e.g. trim 5' end to remove primer sequences
+# e.g. trim F reads at the 3' end (right) where any read has a quality that goes below 15
+# e.g. trim R reads at the 3' end (right) where any read has a quality that goes below 15
+# e.g. trim F and R reads at the beginning (left, 5' end) to remove primer seqs, use length of the F and R primers
+
+#FYI,  --p-trunc-len-f and --p-trunc-len-r are the final lengths, after 5' trimming
+#so, for this parameter, need to decide on 3' coordinate to trim based on quality scores, then subtract the number of bases that are being trimmed on the 5' end.
+
+#add pooling parameter, to consider all reads across samples, and not by individual samples (single), i.e.:
+#--p-pooling-method pseudo (and not independent) may be a better choice for keeping singletons that are real and not errors (see Bardenhorst et al. 2022)
+
 
 #may want to run this in the background as it can take a long time
 #can use screen in UNIX, see instructions at the top of this file
@@ -170,6 +181,8 @@ qiime dada2 denoise-paired \
   --p-trunc-len-f 150 \
   --p-trunc-len-r 150 \
   --p-n-threads 15 \
+  --p-pooling-method pseudo 
+
 
 # output files:
 # sunfish16S_dada2stats.qza records how many reads were filtered from each sample and why
@@ -236,9 +249,9 @@ qiime feature-table filter-features \
 #ideally we want more data, but this will depend on the quality of amplicons, the sequencing run, etc...
 #may want to do this before filtering ASVs, because this filtering may end up removing reads from low abundance ASVs 
 
-qiime feature-table filter-samples
-	--i-table sunfish16S_otutable_ASVmin7.qza
-	--p-min-frequency 500
+qiime feature-table filter-samples \
+	--i-table sunfish16S_otutable_ASVmin7.qza \
+	--p-min-frequency 500 \
 	--o-filtered-table sunfish16S_otutable_ASVmin7_samplemin500.qza
 
 #get summary/visualization of otutable after ASV and sample filtering
@@ -314,7 +327,9 @@ qiime diversity core-metrics-phylogenetic \
 qiime feature-classifier classify-sklearn \
   --i-classifier /data/tax_databases/silva/silva138_qiime2_classifiers/silva-138-99-515-806-nb-classifier.qza \
   --i-reads sunfish16S_repseqs_ASVmin7_samplemin500.qza \
-  --o-classification sunfish16S_taxonomy_ASVmin7_samplemin500.qza
+  --o-classification sunfish16S_taxonomy_ASVmin7_samplemin500.qza \
+  --p-n-jobs 10
+
 
 #optional - get visualization of table with ASV classification and confidence
 qiime metadata tabulate \
@@ -374,7 +389,9 @@ qiime tools export \
 #export sequences
 qiime tools export \
   --input-path sunfish16S_repseqs.qza \
-  --output-path sunfish16S_repseqs
+  --output-path repseqs_dir
 #generates DNA_sequences.fasta
 #rename
-mv DNA_sequences.fasta sunfish16S_repseqs.fasta
+mv ./repseqs_dir/dna-sequences.fasta sunfish16S_repseqs.fasta
+#remove empty directory
+rmdir repseqs_dir

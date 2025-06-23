@@ -1,0 +1,62 @@
+
+#in R, Save/export results from DADA2 processing
+
+# The sequence table following chimeric sequence removal was saved as an R object and .tsv table to the dada2_processing directory
+saveRDS(seqtab.nochim, file = "/home/sarahcorkery/dada2_processing/seqtab.nochim.rds")
+write.table(seqtab.nochim, "/home/sarahcorkery/dada2_processing/seqtab_nochim.tsv", sep = '\t')
+
+
+# The new table with taxa assignments was saved as a .csv and R object
+write.csv(taxa.print, "/home/sarahcorkery/dada2_processing/taxa.csv")
+saveRDS(taxa, file = "/home/sarahcorkery/dada2_processing/taxa.rds")
+
+
+#in R, DADA2 to phyloseq
+
+# Importing files into R
+taxa <- readRDS("/home/sarahcorkery/dada2_processing/taxa.rds")
+
+seqtab.nochim <- readRDS("/home/sarahcorkery/dada2_processing/seqtab.nochim.rds")
+
+metadata <- read.csv("/home/sarahcorkery/dada2_processing/metadata.csv")
+rownames(metadata) = metadata[,1]
+
+# Creating the phyloseq object
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
+               sample_data(metadata), tax_table(taxa))
+
+
+
+#DADA2 in R to qiime2
+#https://forum.qiime2.org/t/exporting-dada2-r-package-results-to-work-with-qiime2/2573/5
+
+#in R, export ASV table
+write.table(t(seqtab.nochim), "dada2-analysis/seqtab-nochim.txt", sep="\t", row.names=TRUE, col.names=NA, quote=FALSE)
+
+#in R, export sequences
+uniquesToFasta(seqtab.nochim, fout='dada2-analysis/rep-seqs.fna', ids=colnames(seqtab.nochim))
+
+#in qiime2, import sequences
+# don't forget to: source activate qiime2-2022.2)
+qiime tools import \
+ --input-path dada2-analysis/rep-seqs.fna \
+ --type 'FeatureData[Sequence]' \
+--output-path rep-seqs.qza
+
+#add #OTU Table to create table format with headers to match biom format in UNIX
+echo -n "#OTU Table" | cat - dada2-analysis/seqtab-nochim.txt > dada2-analysis/otutable.txt
+
+#using qiime2, convert tab-delimited otu table to binary hdf5 format
+# don't forget to: source activate qiime2-2022.2)
+biom convert -i dada2-analysis/otutable.txt -o dada2-analysis/otutable.biom --table-type="OTU table" --to-hdf5
+
+#in qiime2, import otu table
+qiime tools import \
+  --input-path dada2-analysis/otutable.biom \
+ --type 'FeatureTable[Frequency]' \
+  --source-format BIOMV210Format \
+  --output-path otutable.qza
+  
+
+
+

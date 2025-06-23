@@ -1,0 +1,75 @@
+#blastn ITS sequences to the UNITE database
+#then use cut-offs specified by Tedersoo et al. 2022 to decide how to classify fungi
+
+blastn -query /path/to/unidentified_seqs.fasta -db /data/tax_databases/unite/UNITE_9.0/unite90_blastdb/unite90
+-outfmt "6 std qcovs" -max_target_seqs 1 -out unidentified_uniteblastn.tsv
+
+#then using these blast results, i.e. the best-hit from the UNITE database for the query sequence and the e-value, use e-value cut-offs specified Tedersoo et al. 2022 to decide how each sequence should be classified (i.e., the same kingdom, the same phylum, the same class, etc... as the sequence from the UNITE database?).  These e-value cut-offs are in the table KPCO_cutoffs.csv (formerly called KPCO_table.csv)
+
+#run python script to assign taxonomy based on blastn e-value cut-offs in Tedersoo et al. 2022 
+python3 ~/scripts/blast_get_taxonomy_uniteITS.py  -b unidentified_uniteblastn.tsv -t ~/scripts/KPCO_cutoffs.csv -o unidentified_uniteblastn_taxonomy.tsv
+
+#To replace the taxonomy of the "unidentified" ASVs with the taxonomy that you got through the blastn of the UNITE database.
+# in R, to get taxonomy table compatible with phyloseq
+
+
+#first, if this not done already, make phyloseq object for these ASVs in R
+#e.g., import qiime2 files containing the associated metabarcode data as a phyloseq object
+
+fungi <- qza_to_phyloseq(
+  #features="table_filtered_ASVmin2_Fungi_ITS218S_2024Apr.qza",
+  features="table_filtered_ASVmin10_samplemin4000_Fungi_ITS218S_2024Apr.qza",
+  #tree="repseqs_16SV4_2023Dec_rooted_tree.qza",
+  taxonomy="taxonomy_repseqs_ASVmin10_samplemin4000_Fungi_ITS218S_2024Apr.qza",
+  metadata = "metadata_file_Fungi_ITS218S_2024Apr.tsv"
+)
+
+# convert tax table into dataframe
+fungi_tt = as.data.frame(tax_table(fungi))
+# add ASV as new column
+fungi_tt$ASV <- row.names(fungi_tt)
+
+
+# read in output from blast to UNITE database, with taxonomy based on e-value cutoffs
+blast_taxonomy <- read.delim("unidentified_uniteblastn_taxonomy.tsv", stringsAsFactors = FALSE)
+
+# Iterate over each ASV in blast_taxonomy and match to the fungi_tt$ASV
+# then replace taxonomy string in fungi_tt with taxonomy string in blast_taxonomy
+for (i in 1:nrow(blast_taxonomy)) {
+  matching_row <- which(fungi_tt$ASV == blast_taxonomy[i, "ASV"])
+    if (length(matching_row) > 0) {
+    fungi_tt[matching_row, "Kingdom"] <- blast_taxonomy[i, "Kingdom"]
+    fungi_tt[matching_row, "Phylum"] <- blast_taxonomy[i, "Phylum"]
+    fungi_tt[matching_row, "Class"] <- blast_taxonomy[i, "Class"]
+    fungi_tt[matching_row, "Order"] <- blast_taxonomy[i, "Order"]
+    fungi_tt[matching_row, "Family"] <- blast_taxonomy[i, "Family"]
+    fungi_tt[matching_row, "Genus"] <- blast_taxonomy[i, "Genus"]
+    fungi_tt[matching_row, "Species"] <- blast_taxonomy[i, "Species"]
+  }
+}
+
+# remove ASV column
+fungi_tt <- subset(fungi_tt, select = -c(ASV) )
+
+# convert to matrix
+fungi_tt <- as.matrix(fungi_tt)
+
+# remake into taxonomyTable object
+fungi_tt <- tax_table(fungi_tt, errorIfNULL = TRUE)
+#class(fungi)
+tax_table(fungi) <- fungi_tt
+
+
+#executing the phyloseq object (i.e. running fungi) will give a summary of the data
+#Did the data import as you expected?  Check number of samples, etc...
+fungi
+#to view/use otu table
+otu_table(fungi)
+#to view/use metadata
+sample_data(fungi)
+
+
+
+#FYI, Cristina named python blast scripts as blast_get_taxonomy_unite-Fungi_ITS218S_2024Apr.py 
+# And, original code to modify taxonomy in the phyloseq object is at the beginning of: 
+#/home/cturcu/cturcu_MSc/Tai_Bioinfomatics/ITS2_18S_2024Apr/fungi/ITS218S_2024Apr_Fungi.R

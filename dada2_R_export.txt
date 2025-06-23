@@ -1,0 +1,45 @@
+#export DADA2 objects in R to be imported to qiime2
+#https://forum.qiime2.org/t/exporting-dada2-r-package-results-to-work-with-qiime2/2573/5
+
+#in R, export ASV table
+write.table(t(seqtab.nochim), "dada2-analysis/seqtab-nochim.txt", sep="\t", row.names=TRUE, col.names=NA, quote=FALSE)
+
+#in R, export sequences
+uniquesToFasta(seqtab.nochim, fout='dada2-analysis/rep-seqs.fna', ids=colnames(seqtab.nochim))
+
+
+#Import feature table from text file
+
+#add #OTU ID to create table format with headers to match biom format in UNIX
+echo -n "#OTU ID" | cat - dada2-analysis/seqtab-nochim.txt > dada2-analysis/otutable.txt
+
+#using qiime2, convert tab-delimited otu table to binary hdf5 format
+#don't forget to: source activate qiime2-2022.2
+biom convert -i dada2-analysis/otutable.txt -o dada2-analysis/otutable.biom --table-type="OTU table" --to-hdf5
+
+
+#in qiime2, import otu table
+qiime tools import \
+  --input-path dada2-analysis/otutable.biom \
+ --type 'FeatureTable[Frequency]' \
+  --source-format BIOMV210Format \
+  --output-path otutable.qza
+
+
+#Import sequences, in qiime2
+qiime tools import \
+ --input-path dada2-analysis/rep-seqs.fna \
+ --type 'FeatureData[Sequence]' \
+--output-path rep-seqs.qza
+
+
+
+#Importing a taxonomy table:
+
+qiime tools import \
+--type 'FeatureData[Taxonomy]' \
+--input-format HeaderlessTSVTaxonomyFormat \
+--input-path tax.txt \
+--output-path taxonomy.qza
+
+
