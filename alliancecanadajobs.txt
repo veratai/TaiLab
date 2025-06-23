@@ -1,8 +1,9 @@
-#using Compute Canada resources
+#using Digital Research of Alliance Canada (Compute Canada) resources
+
 # for help e-mail support@tech.alliancecan.ca
 
 
-Nibi (replacing Graham in July 2025) (nibi.sharcnet.ca)
+# should connect to Nibi (replacing Graham in July 2025) (nibi.sharcnet.ca)
 
 #for now:
 #graham.alliancecan.ca
