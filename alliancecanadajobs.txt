@@ -4,6 +4,7 @@
 
 
 # should connect to Nibi (replacing Graham in July 2025) (nibi.sharcnet.ca)
+# but does not have NCBI database yet
 
 #for now:
 #graham.alliancecan.ca
@@ -42,6 +43,7 @@ module spider python
 
 
 #so need to set up environment by loading preferred module
+#can also do this inside bash script
 module load blast+/2.14.1
 
 #FYI, cardinal is using 2.16.0+
@@ -74,8 +76,10 @@ module load blast+/2.14.1
 python simple_job.py 7 output_file
 
 
-#or like this, if custom python packages are needed, which are listed in requirements.txt
-#see more instructions below, or visit https://docs.alliancecan.ca/wiki/Python
+#or like this, if installing custom python packages within bash script, which are listed in requirements.txt
+#can also locally install python packages (and not within the bash script)
+#see below for more instructions on installing python packages
+#or visit https://docs.alliancecan.ca/wiki/Python
 
 #!/bin/bash
 #SBATCH --account=def-someuser
