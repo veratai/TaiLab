@@ -7,6 +7,7 @@ library(vegan)
 library(tidyverse)
 library(tidyr)
 library(dplyr)
+library(rearrr)
 
 
 # Rarefy data
