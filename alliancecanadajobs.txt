@@ -31,6 +31,12 @@ PATH=$PATH:/home/userid/projects/def-vtai4/bin
 export PATH
 
 
+# Vera will put custom installed tools for use by the lab in this directory
+# e.g., datasets and dataformat from NCBI CLI tools have been installed in this directory
+# by following instructions here: https://www.ncbi.nlm.nih.gov/datasets/docs/v2/command-line-tools/download-and-install/
+ 
+# by setting up /home/userid/projects/def-vtai4/bin in your PATH, these tools are now available to you
+
 #if you want your own bin, in your home directory
 mkdir bin
 #~/bin may not be in your PATH, so may need to add path in .bash_profile
@@ -38,7 +44,7 @@ mkdir bin
 echo $PATH
 # see if you have this at the end:
 /home/userid/bin
-#if not, can add this to your path as well
+#if not, can add this to your PATH as well
 
 
 #make directories for running jobs in ~/projects/def-vtai4/userid
@@ -59,10 +65,6 @@ scp local_file username@gra-dtn1.alliancecan.ca:~/path_to_directory
 #for really large amounts of data, use Globus web-based tool
 
 
-#need to locally install datasets and dataformat from NCBI CLI tools
-#for instructions, see section on Install using curl for Linux: #https://www.ncbi.nlm.nih.gov/datasets/docs/v2/command-line-tools/download-and-install/
-
-#make sure datasets and dataformat are located in ~/bin (i.e. /home/userid/bin)
 
 
 #NCBI databases are generally located in directories within:
