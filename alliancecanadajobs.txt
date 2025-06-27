@@ -16,9 +16,36 @@ ssh username@graham.alliancecan.ca
 
 #make directory for scripts and for bin in your home directory
 mkdir scripts
+
+#Add Vera's bin to your path to access tools needed by Tai Lab that are not installed by Alliance Canada.
+#to do this, need to add /home/userid/projects/def-vtai4/bin to your PATH by editing your .bash_profile
+
+nano .bash_profile
+
+#under this line:
+# User specific environment and startup programs
+
+#add this text, then save (^X):
+PATH=$PATH:/home/userid/projects/def-vtai4/bin
+
+export PATH
+
+
+#if you want your own bin, in your home directory
 mkdir bin
+#~/bin may not be in your PATH, so may need to add path in .bash_profile
+#check the directories in your PATH like this:
+echo $PATH
+# see if you have this at the end:
+/home/userid/bin
+#if not, can add this to your path as well
+
 
 #make directories for running jobs in ~/projects/def-vtai4/userid
+#may need to make a directory named with your userid, e.g.,
+cd ~/projects/def-vtai4/
+mkdir vtai4
+
 #run jobs from this directory
 cd ~/projects/def-vtai4/userid
 mkdir project_name
@@ -105,6 +132,7 @@ salloc simple_job.sh
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 module load python/3.13.2
 module load blast+/2.14.1
+module load scipy-stack
 python simple_job.py 7 output_file
 
 
